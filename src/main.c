@@ -13,7 +13,7 @@ static const u8 PALETTE[] = {
 	
 	BG_COLOR, 0x16, 0x2A, 0x1D,
 	BG_COLOR, 0x13, 0x28, 0x1D,
-	BG_COLOR, 0x1D, 0x1D, 0x1D,
+	BG_COLOR, 0x1D, 0x30, 0x10,
 	BG_COLOR, 0x1D, 0x1D, 0x1D,
 };
 
@@ -81,20 +81,6 @@ static const u8 SYMBOL_GRID_POSY[] = {
 	0,
 };
 
-// TODO Temp data
-static u8 SYMBOL_GRID[64] = {
-	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	0x0, 0x0, 0x1, 0x2, 0x3, 0x0, 0x0, 0x0,
-	0x0, 0x4, 0x5, 0x6, 0x7, 0x0, 0x0, 0x0,
-	0x0, 0x8, 0x9, 0xA, 0xB, 0x0, 0x0, 0x0,
-	0x0, 0xC, 0xD, 0xE, 0xF, 0x0, 0x0, 0x0,
-	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-};
-
-static u8 TILE_GRID[64] = {};
-
 static const u8 TILE_BOX[] = {
 	0x80, 0x81, 0x82, 0x83,
 	0x90, 0x91, 0x92, 0x93,
@@ -109,8 +95,8 @@ static const u8 TILE_CIRCLE[] = {
 	0xF0, 0xF1, 0xF2, 0xF3,
 };
 
-static const u8* TILE_CHRS[] = {TILE_BOX, TILE_BOX, TILE_BOX, TILE_CIRCLE, TILE_CIRCLE};
-static const u8 TILE_ATTRS[] = {0x00, 0x55, 0xAA, 0x55, 0xAA};
+static const u8* METATILE_CHRS[] = {TILE_BOX, TILE_BOX, TILE_BOX, TILE_CIRCLE, TILE_CIRCLE};
+static const u8 METATILE_ATTRS[] = {0x00, 0x55, 0xAA, 0x55, 0xAA};
 
 static const u16 TILE_NT_OFFS[] = {
 	0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000,
@@ -134,37 +120,93 @@ static const u8 TILE_AT_OFFS[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static const u8 GRID_INDICES[] = {
-	0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-	0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-	0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
-	0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
-	0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
-	0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+// static const u8 GRID_INDICES[] = {
+// 	0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+// 	0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+// 	0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
+// 	0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
+// 	0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+// 	0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+// };
+
+// TODO Temp data
+static u8 SYMBOL_GRID[64] = {
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+	0x0, 0x0, 0x1, 0x2, 0x3, 0x0, 0x0, 0x0,
+	0x0, 0x4, 0x5, 0x6, 0x7, 0x0, 0x0, 0x0,
+	0x0, 0x8, 0x9, 0xA, 0xB, 0x0, 0x0, 0x0,
+	0x0, 0xC, 0xD, 0xE, 0xF, 0x0, 0x0, 0x0,
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 };
 
-static void SetTile(u8 tile){
+static u8 TILE_GRID[64];
+
+static u8 FOOBAR[512];
+
+static void blit_tile(u8 tile){
+	static u8 metatile;
 	static u16 nt_offs;
+	
 	nt_offs = TILE_NT_OFFS[tile];
-	idx = 4;
-	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x00) + nt_offs, TILE_CHRS[idx] + 0x0, 4);
-	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x20) + nt_offs, TILE_CHRS[idx] + 0x4, 4);
-	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x40) + nt_offs, TILE_CHRS[idx] + 0x8, 4);
-	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x60) + nt_offs, TILE_CHRS[idx] + 0xC, 4);
-	px_buffer_blit(AT_ADDR(0) + TILE_AT_OFFS[tile], TILE_ATTRS + idx, 1);
+	metatile = TILE_GRID[tile];
+	
+	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x00) + nt_offs, METATILE_CHRS[metatile] + 0x0, 4);
+	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x20) + nt_offs, METATILE_CHRS[metatile] + 0x4, 4);
+	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x40) + nt_offs, METATILE_CHRS[metatile] + 0x8, 4);
+	px_buffer_blit((NT_ADDR(0, 0, 0) + 0x60) + nt_offs, METATILE_CHRS[metatile] + 0xC, 4);
+	px_buffer_blit(AT_ADDR(0) + TILE_AT_OFFS[tile], METATILE_ATTRS + metatile, 1);
+}
+
+#define MOUSE_SPEED 0x280
+static u16 mouse_x, mouse_y;
+
+static u8 tile_at_mouse(void){
+	u8 x = (mouse_x + 0x0000) >> 13;
+	u8 y = (mouse_y + 0x1400) >> 13;
+	
+	if((u8)(x - 1) < 6 && (u8)(y - 1) < 6){
+		return x + 8*y;
+	} else {
+		return 0;
+	}
+}
+
+static void gameloop_player(void){
+	while(true){
+		if(JOY_LEFT (pad1.value)) mouse_x -= MOUSE_SPEED;
+		if(JOY_RIGHT(pad1.value)) mouse_x += MOUSE_SPEED;
+		if(JOY_DOWN (pad1.value)) mouse_y += MOUSE_SPEED;
+		if(JOY_UP   (pad1.value)) mouse_y -= MOUSE_SPEED;
+		px_spr(mouse_x >> 8, mouse_y >> 8, 0x02, 0x04);
+		
+		if(JOY_BTN_B(pad1.press)){
+			tmp = tile_at_mouse();
+			if(tmp){
+				TILE_GRID[tmp] = 1;
+				blit_tile(tmp);
+			}
+		}
+		
+		px_coro_yield(0);
+	}
+}
+
+static u8 GAMELOOP_CORO[256];
+static uintptr_t gameloop_body(uintptr_t _){
+	mouse_x = 0x8000, mouse_y = 0x8000;
+	
+	while(true){
+		gameloop_player();
+	}
 }
 
 static void splash_screen(void){
-	register u8 x = 32, y = 32;
-	register s16 sin = 0, cos = 0x3FFF;
-	
 	px_ppu_sync_disable();{
-		// Load the splash tilemap into nametable 0.
-		// px_lz4_to_vram(NT_ADDR(0, 0, 0), MAP_SPLASH);
-		
 		for(ix = 1; ix <= 6; ix++){
 			for(iy = 1; iy <= 6; iy++){
-				SetTile(ix + iy*8);
+				blit_tile(ix + iy*8);
 				px_buffer_exec();
 			}
 		}
@@ -177,14 +219,11 @@ static void splash_screen(void){
 	
 	fade_from_black(PALETTE, 4);
 	
+	px_coro_init(gameloop_body, GAMELOOP_CORO, sizeof(GAMELOOP_CORO));
+	
 	while(true){
-		
 		read_gamepads();
-		if(JOY_LEFT (pad1.value)) x -= 1;
-		if(JOY_RIGHT(pad1.value)) x += 1;
-		if(JOY_DOWN (pad1.value)) y += 1;
-		if(JOY_UP   (pad1.value)) y -= 1;
-		if(JOY_BTN_A(pad1.press)) sound_play(SOUND_JUMP);
+		if(px_coro_resume(GAMELOOP_CORO, 0)) break;
 		
 		for(ix = 1; ix <= 6; ix++){
 			for(iy = 1; iy <= 6; iy++){
@@ -203,15 +242,11 @@ static void splash_screen(void){
 }
 
 void main(void){
-	// Set up CC65 joystick driver.
+	px_uxrom_select(0);
 	joy_install(nes_stdjoy_joy);
 	
-	// Set which tiles to use for the background and sprites.
 	px_bg_table(0);
 	px_spr_table(0);
-	
-	// Not using bank switching, but a good idea to set a reliable value at boot.
-	px_uxrom_select(0);
 	
 	// Black out the palette.
 	for(idx = 0; idx < 32; idx++) px_buffer_set_color(idx, 0x1D);
@@ -223,6 +258,5 @@ void main(void){
 	sound_init(&SOUNDS);
 	music_init(&MUSIC);
 	
-	// Jump to the splash screen state.
 	splash_screen();
 }
