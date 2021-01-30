@@ -1,4 +1,4 @@
-PROJECT_NAME = GGJ20
+PROJECT_NAME = GGJ21
 ROM = $(PROJECT_NAME).nes
 
 CC65_ROOT = `pwd`/../cc65
@@ -90,10 +90,10 @@ $(ROM): ld65.cfg $(OBJS) $(PX_LIB)
 src/data.o: $(CHR:.png=.lz4) map/splash.lz4
 
 tiles: chr/0.chr
-	$(PX_TOOLS_PATH)/chr2png "1D 00 10 20" chr/0.chr chr/0-pal0.png
-	$(PX_TOOLS_PATH)/chr2png "1D 06 16 26" chr/0.chr chr/0-pal1.png
-	$(PX_TOOLS_PATH)/chr2png "1D 09 19 29" chr/0.chr chr/0-pal2.png
-	$(PX_TOOLS_PATH)/chr2png "1D 01 11 21" chr/0.chr chr/0-pal3.png
+	$(PX_TOOLS_PATH)/chr2png "17 1D 30 10" chr/0.chr chr/0-pal0.png
+	$(PX_TOOLS_PATH)/chr2png "17 1D 31 11" chr/0.chr chr/0-pal1.png
+	$(PX_TOOLS_PATH)/chr2png "17 1D 3A 1A" chr/0.chr chr/0-pal2.png
+	$(PX_TOOLS_PATH)/chr2png "17 1D 1D 1D" chr/0.chr chr/0-pal3.png
 
 audio/sounds.s: audio/sounds.nsf ft2-tools
 	$(FT2_TOOLS_PATH)/nsf2data $< -ca65 -ntsc
