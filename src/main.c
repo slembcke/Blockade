@@ -289,21 +289,28 @@ static void assign_tiles(void){
 	}
 }
 
-static void lock_tiles(void){
+static void capture_tiles(void){
 	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
-		tmp = tile_grid[grid_idx];
+		grid_tile = tile_grid[grid_idx];
 		
-		// Skip if the tile is not owned.
-		if((tmp & (player_own_bit | TILE_PERIMETER_BITS)) == player_own_bit){
-			tmp &= (tile_grid - 1)[grid_idx]; // Left
+		// Skip the border tiles.
+		if(grid_tile & TILE_BORDER_BIT) continue;
+		
+		// Only process owned tiles.
+		if(grid_tile & TILE_OWNER_BITS){
+			tmp  = (tile_grid - 1)[grid_idx]; // Left
 			tmp &= (tile_grid + 1)[grid_idx]; // Right
 			tmp &= (tile_grid - 8)[grid_idx]; // Up
 			tmp &= (tile_grid + 8)[grid_idx]; // Down
-			if(tmp & player_own_bit){
+			
+			if(((grid_tile ^ tmp) & TILE_OWNER_BITS) == 0){
 				tile_grid[grid_idx] |= TILE_LOCKED_BIT;
-				blit_tile();
-				px_coro_yield(0);
+			} else {
+				tile_grid[grid_idx] &= ~TILE_LOCKED_BIT;
 			}
+			
+			blit_tile();
+			px_coro_yield(0);
 		}
 	}
 }
@@ -334,7 +341,7 @@ static void gameloop_player(void){
 				if(check_match()){
 				// 	shuffle_tiles();
 					assign_tiles();
-					lock_tiles();
+					capture_tiles();
 					raise_tiles();
 					break;
 				} else {
