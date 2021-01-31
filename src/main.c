@@ -200,22 +200,14 @@ static u8 shuffle_arr[SHUFFLE_COUNT] = {
 static u8 tile_grid[64];
 
 #define P TILE_PERIMETER_BITS
-#define B TILE_PLAYER1_OWN_BIT
-#define G TILE_PLAYER2_OWN_BIT
 static const u8 TILE_GRID_INIT[64] = {
 	P, P, P, P, P, P, P, P,
-	P, B, B, B, G, G, G, P,
-	P, B, B, B, G, G, G, P,
-	P, B, B, B, G, G, G, P,
-	P, B, B, B, G, G, G, P,
-	P, B, B, B, G, G, G, P,
-	P, B, B, 0, 0, G, G, P,
-	// P, 0, 0, 0, 0, 0, 0, P,
-	// P, 0, 0, 0, 0, 0, 0, P,
-	// P, 0, 0, 0, 0, 0, 0, P,
-	// P, 0, 0, 0, 0, 0, 0, P,
-	// P, 0, 0, 0, 0, 0, 0, P,
-	// P, 0, 0, 0, 0, 0, 0, P,
+	P, 0, 0, 0, 0, 0, 0, P,
+	P, 0, 0, 0, 0, 0, 0, P,
+	P, 0, 0, 0, 0, 0, 0, P,
+	P, 0, 0, 0, 0, 0, 0, P,
+	P, 0, 0, 0, 0, 0, 0, P,
+	P, 0, 0, 0, 0, 0, 0, P,
 	P, P, P, P, P, P, P, P,
 };
 
@@ -496,19 +488,7 @@ static void game_screen(void){
 	memcpy(tile_grid, TILE_GRID_INIT, sizeof(tile_grid));
 	// memcpy(symbol_grid, SYMBOL_GRID_INIT, sizeof(symbol_grid));
 	
-	rand_seed = 1234;
-	
-	// Fill with 4 of each.
-	for(idx = 0; idx < 16; idx++){
-		(symbol_grid + 0x00)[idx] = idx;
-		(symbol_grid + 0x10)[idx] = idx;
-		(symbol_grid + 0x20)[idx] = idx;
-		(symbol_grid + 0x30)[idx] = idx;
-	}
-	
-	shuffle_deck();
-	
-	// Copy overflow to shuffle.
+	// Setup shuffled tiles.
 	memcpy(shuffle_arr + 0, symbol_grid + 0x00, 8);
 	memcpy(shuffle_arr + 8, symbol_grid + 0x38, 8);
 	shuffle_arr[0x10] = symbol_grid[0x08];
@@ -584,12 +564,29 @@ static void game_screen(void){
 	} else {
 		px_buffer_blit(NT_ADDR(0, 5, 24), "    DRAW!   ", 12);
 	}
-	px_buffer_blit(NT_ADDR(0, 0, 25), "                                ", 32);
+	px_buffer_blit(NT_ADDR(0, 0, 25), "      PRESS START               ", 32);
 	
-	while(true) px_wait_nmi();
+	while(true){
+		read_gamepads();
+		if(JOY_START(pad1.value)) break;
+		
+		px_wait_nmi();
+	}
+	
+	exit(0);
 }
 
 static void splash_screen(void){
+	rand_seed = 1234;
+	
+	// Fill with 4 of each.
+	for(idx = 0; idx < 16; idx++){
+		(symbol_grid + 0x00)[idx] = idx;
+		(symbol_grid + 0x10)[idx] = idx;
+		(symbol_grid + 0x20)[idx] = idx;
+		(symbol_grid + 0x30)[idx] = idx;
+	}
+	
 	px_ppu_sync_disable();{
 		px_lz4_to_vram(NT_ADDR(0, 0, 0), MAP_SPLASH);
 	} px_ppu_sync_enable();
@@ -600,7 +597,8 @@ static void splash_screen(void){
 		read_gamepads();
 		if(JOY_START(pad1.value)) break;
 		
-		px_buffer_blit(NT_ADDR(0, 10, 24), "PRESS START", 12);
+		px_buffer_blit(NT_ADDR(0, 10, 25), "PRESS START", 12);
+		shuffle_deck();
 		
 		px_spr_end();
 		px_wait_nmi();
