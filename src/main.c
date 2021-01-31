@@ -181,8 +181,14 @@ static u8 SYMBOL_GRID_INIT[] = {
 	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 };
 
-static u8 shuffle_cursor = 12;
-static u8 shuffle_arr[16] = {0x6, 0xE, 0x9, 0x1, 0xC, 0x4, 0x7, 0xF, 0xA, 0x2, 0xD, 0x5};
+#define SHUFFLE_COUNT 0x20
+#define SHUFFLE_MASK (SHUFFLE_COUNT - 1)
+#define SHUFFLE_OFFSET_MASK 0x1F
+static u8 shuffle_cursor = SHUFFLE_COUNT - 4;
+static u8 shuffle_arr[SHUFFLE_COUNT] = {
+	0x6, 0xE, 0x9, 0x1, 0xC, 0x4, 0x7, 0xF, 0xA, 0x2, 0xD, 0x5,
+	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF,
+};
 
 #define TILE_PLAYER1_OWN_BIT 0x1
 #define TILE_PLAYER2_OWN_BIT 0x2
@@ -299,32 +305,32 @@ static void shuffle_tiles(){
 	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
 		grid_val = symbol_grid[grid_idx];
 		if(grid_val & SYMBOL_ANIM_BITS){
-			shuffle_arr[shuffle_cursor & 0xF] = grid_val & SYMBOL_TYPE_BITS;
+			shuffle_arr[shuffle_cursor & SHUFFLE_MASK] = grid_val & SYMBOL_TYPE_BITS;
 			shuffle_cursor++;
 		}
 	}
 	
 	// Swap elements. (Copy pasta... move on lol)
-	ix = (shuffle_cursor + 0) & 0xF;
-	iy = (ix + (rand8() & 0x7)) & 0xF;
+	ix = (shuffle_cursor + 0) & SHUFFLE_MASK;
+	iy = (ix + (rand8() & SHUFFLE_OFFSET_MASK)) & SHUFFLE_MASK;
 	tmp = shuffle_arr[ix];
 	shuffle_arr[ix] = shuffle_arr[iy];
 	shuffle_arr[iy] = tmp;
 	
-	ix = (shuffle_cursor + 1) & 0xF;
-	iy = (ix + (rand8() & 0x7)) & 0xF;
+	ix = (shuffle_cursor + 1) & SHUFFLE_MASK;
+	iy = (ix + (rand8() & SHUFFLE_OFFSET_MASK)) & SHUFFLE_MASK;
 	tmp = shuffle_arr[ix];
 	shuffle_arr[ix] = shuffle_arr[iy];
 	shuffle_arr[iy] = tmp;
 	
-	ix = (shuffle_cursor + 2) & 0xF;
-	iy = (ix + (rand8() & 0x7)) & 0xF;
+	ix = (shuffle_cursor + 2) & SHUFFLE_MASK;
+	iy = (ix + (rand8() & SHUFFLE_OFFSET_MASK)) & SHUFFLE_MASK;
 	tmp = shuffle_arr[ix];
 	shuffle_arr[ix] = shuffle_arr[iy];
 	shuffle_arr[iy] = tmp;
 	
-	ix = (shuffle_cursor + 3) & 0xF;
-	iy = (ix + (rand8() & 0x7)) & 0xF;
+	ix = (shuffle_cursor + 3) & SHUFFLE_MASK;
+	iy = (ix + (rand8() & SHUFFLE_OFFSET_MASK)) & SHUFFLE_MASK;
 	tmp = shuffle_arr[ix];
 	shuffle_arr[ix] = shuffle_arr[iy];
 	shuffle_arr[iy] = tmp;
@@ -332,7 +338,7 @@ static void shuffle_tiles(){
 	// Copy symbols back to the grid.
 	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
 		if(symbol_grid[grid_idx] & SYMBOL_ANIM_BITS){
-			symbol_grid[grid_idx] = shuffle_arr[shuffle_cursor & 0xF] + 0x20;
+			symbol_grid[grid_idx] = shuffle_arr[shuffle_cursor & SHUFFLE_MASK] + 0x20;
 			shuffle_cursor++;
 		}
 	}
@@ -438,10 +444,6 @@ static void game_screen(void){
 	
 	rand_seed = 1234;
 	
-	// while(count < 4){
-		
-	// }
-	
 	px_ppu_sync_disable();{
 		for(ix = 1; ix <= 6; ix++){
 			for(iy = 1; iy <= 6; iy++){
@@ -477,14 +479,14 @@ static void game_screen(void){
 		}
 		
 		// Sloppy debug draw for shuffle array
-		// for(idx = 4; idx < 16; idx++){
-		// 	tmp = shuffle_arr[(shuffle_cursor + idx) & 0xF];
-		// 	px_spr(0x08 + 16*idx, 0xD0 + idx, SYMBOL_ATTR[tmp & 0xF], SYMBOL_CHR[tmp & 0xF]);
-		// }
+		for(idx = 4; idx < 31; idx++){
+			tmp = shuffle_arr[(shuffle_cursor + idx) & SHUFFLE_MASK];
+			px_spr(0x00 + 8*idx, 0xC0 + idx, SYMBOL_ATTR[tmp & 0xF], SYMBOL_CHR[tmp & 0xF]);
+		}
 		
 		px_profile_start();
 		px_profile_end();
-		px_spr_end();
+		// px_spr_end();
 		px_wait_nmi();
 	}
 }
