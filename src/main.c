@@ -525,6 +525,7 @@ static void game_screen(void){
 	shuffle_arr[0x1B] = symbol_grid[0x37];
 	
 	px_ppu_sync_disable();{
+		px_lz4_to_vram(NT_ADDR(0, 0, 0), MAP_CLEAR);
 		for(ix = 1; ix <= 6; ix++){
 			for(iy = 1; iy <= 6; iy++){
 				grid_idx = ix + iy*8;
@@ -588,6 +589,26 @@ static void game_screen(void){
 	while(true) px_wait_nmi();
 }
 
+static void splash_screen(void){
+	px_ppu_sync_disable();{
+		px_lz4_to_vram(NT_ADDR(0, 0, 0), MAP_SPLASH);
+	} px_ppu_sync_enable();
+	
+	fade_from_black(PALETTE, 4);
+	
+	while(true){
+		read_gamepads();
+		if(JOY_START(pad1.value)) break;
+		
+		px_buffer_blit(NT_ADDR(0, 10, 24), "PRESS START", 12);
+		
+		px_spr_end();
+		px_wait_nmi();
+	}
+	
+	game_screen();
+}
+
 void main(void){
 	px_uxrom_select(0);
 	joy_install(nes_stdjoy_joy);
@@ -605,5 +626,6 @@ void main(void){
 	sound_init(&SOUNDS);
 	music_init(&MUSIC);
 	
+	splash_screen();
 	game_screen();
 }

@@ -94,7 +94,7 @@ $(ROM): ld65.cfg $(OBJS) $(PX_LIB)
 	$(PX_TOOLS_PATH)/lz4x -f9 $< $@
 	touch $@
 
-src/data.o: $(CHR:.png=.lz4) map/splash.lz4
+src/data.o: $(CHR:.png=.lz4) map/splash.lz4 map/clear.lz4
 
 tiles: chr/0.chr
 	$(PX_TOOLS_PATH)/chr2png "17 1D 30 10" chr/0.chr chr/0-pal0.png
