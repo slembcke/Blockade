@@ -58,6 +58,10 @@ run-linux: rom
 	mesen $(ROM)
 #	nestopia -w -l 1 -n -s 2 -t $(ROM)
 
+vis: $(ROM)
+	dd if=$(ROM) ibs=1 skip=16 > vis.bin
+	$(PX_TOOLS_PATH)/chr2png "1D 16 1A 11" $(ROM) vis.png
+
 run-win: rom
 	../Mesen/Mesen.exe $(ROM)
 
