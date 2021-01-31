@@ -121,17 +121,17 @@ static const u8 METATILES[] = {
 
 static const u8* METATILE_CHRS[] = {
 	METATILES + 0x00, METATILES + 0x00, METATILES + 0x00, NULL, NULL, METATILES + 0x30, METATILES + 0x30, NULL,
-	METATILES + 0x10, METATILES + 0x10, METATILES + 0x10, NULL, METATILES + 0x40, METATILES + 0x40, METATILES + 0x40, NULL,
-	METATILES + 0x20, METATILES + 0x20, METATILES + 0x20, NULL, METATILES + 0x50, METATILES + 0x50, METATILES + 0x50, NULL,
+	METATILES + 0x10, METATILES + 0x10, METATILES + 0x10, NULL, NULL, METATILES + 0x40, METATILES + 0x40, NULL,
+	METATILES + 0x20, METATILES + 0x20, METATILES + 0x20, NULL, NULL, METATILES + 0x50, METATILES + 0x50, NULL,
 };
 
 #define PLAYER1_ATTR 0x55
 #define PLAYER2_ATTR 0xAA
 
 static const u8 METATILE_ATTRS[] = {
-	0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL, 0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL,
-	0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL, 0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL,
-	0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL, 0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL,
+	0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL, NULL, PLAYER1_ATTR, PLAYER2_ATTR, NULL,
+	0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL, NULL, PLAYER1_ATTR, PLAYER2_ATTR, NULL,
+	0x00, PLAYER1_ATTR, PLAYER2_ATTR, NULL, NULL, PLAYER1_ATTR, PLAYER2_ATTR, NULL,
 };
 
 static const u16 TILE_NT_OFFS[] = {
@@ -165,7 +165,7 @@ static const u8 GRID_INDICES[] = {
 	0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
 };
 
-// TODO Temp data
+#define SYMBOL_ANIM_BITS 0x30
 static u8 symbol_grid[64] = {
 	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 	0x0, 0x0, 0x1, 0x2, 0x3, 0x0, 0x0, 0x0,
@@ -202,7 +202,7 @@ static u8 FOOBAR[512];
 
 #define MOUSE_SPEED 0x280
 static u16 mouse_x, mouse_y;
-static u8 grid_idx, grid_tile;
+static u8 grid_idx, grid_val;
 static u8 player_own_bit = TILE_PLAYER1_OWN_BIT;
 
 static void blit_tile(){
@@ -274,15 +274,28 @@ static void click_tile(){
 	}
 }
 
+static const u8 CHECK_BITS[4] = {1, 2, 4, 8};
+static const bool CHECK_ONE[16] = {0, 1, 1, 0, 1, 0, 0, 0, 1};
 static bool check_match(void){
-	return true;
+	ix = 0, iy = 0;
+	for(grid_idx = 0; grid_idx < sizeof(symbol_grid); grid_idx++){
+		grid_val = symbol_grid[grid_idx];
+		if(grid_val & SYMBOL_ANIM_BITS){
+			ix |= CHECK_BITS[(grid_val >> 0) & 0x3];
+			iy |= CHECK_BITS[(grid_val >> 2) & 0x3];
+		}
+	}
+	
+	if(ix == 0xF && CHECK_ONE[iy]) return true;
+	if(iy == 0xF && CHECK_ONE[ix]) return true;
+	return false;
 }
 
 static void assign_tiles(void){
 	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
-		grid_tile = tile_grid[grid_idx];
-		if((grid_tile & TILE_ANIM_BITS) && !(grid_tile & TILE_LOCKED_BIT)){
-			tile_grid[grid_idx] = (grid_tile & ~TILE_OWNER_BITS) | player_own_bit;
+		grid_val = tile_grid[grid_idx];
+		if((grid_val & TILE_ANIM_BITS) && !(grid_val & TILE_LOCKED_BIT)){
+			tile_grid[grid_idx] = (grid_val & ~TILE_OWNER_BITS) | player_own_bit;
 			blit_tile();
 			px_coro_yield(0);
 		}
@@ -291,19 +304,19 @@ static void assign_tiles(void){
 
 static void capture_tiles(void){
 	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
-		grid_tile = tile_grid[grid_idx];
+		grid_val = tile_grid[grid_idx];
 		
 		// Skip the border tiles.
-		if(grid_tile & TILE_BORDER_BIT) continue;
+		if(grid_val & TILE_BORDER_BIT) continue;
 		
 		// Only process owned tiles.
-		if(grid_tile & TILE_OWNER_BITS){
+		if(grid_val & TILE_OWNER_BITS){
 			tmp  = (tile_grid - 1)[grid_idx]; // Left
 			tmp &= (tile_grid + 1)[grid_idx]; // Right
 			tmp &= (tile_grid - 8)[grid_idx]; // Up
 			tmp &= (tile_grid + 8)[grid_idx]; // Down
 			
-			if(((grid_tile ^ tmp) & TILE_OWNER_BITS) == 0){
+			if(((grid_val ^ tmp) & TILE_OWNER_BITS) == 0){
 				tile_grid[grid_idx] |= TILE_LOCKED_BIT;
 			} else {
 				tile_grid[grid_idx] &= ~TILE_LOCKED_BIT;
@@ -339,12 +352,14 @@ static void gameloop_player(void){
 			
 			if(selected_tile_count == 4){
 				if(check_match()){
+					debug_message("MATCH");
 				// 	shuffle_tiles();
 					assign_tiles();
 					capture_tiles();
 					raise_tiles();
 					break;
 				} else {
+					debug_message("FAIL");
 					raise_tiles();
 				}
 			}
