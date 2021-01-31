@@ -186,8 +186,8 @@ static u8 SYMBOL_GRID_INIT[] = {
 #define SHUFFLE_OFFSET_MASK 0x1F
 static u8 shuffle_cursor = SHUFFLE_COUNT - 4;
 static u8 shuffle_arr[SHUFFLE_COUNT] = {
-	0x6, 0xE, 0x9, 0x1, 0xC, 0x4, 0x7, 0xF, 0xA, 0x2, 0xD, 0x5,
-	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF,
+	// 0x6, 0xE, 0x9, 0x1, 0xC, 0x4, 0x7, 0xF, 0xA, 0x2, 0xD, 0x5,
+	// 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF,
 };
 
 #define TILE_PLAYER1_OWN_BIT 0x1
@@ -438,11 +438,48 @@ static uintptr_t gameloop_body(uintptr_t _){
 	}
 }
 
+static void shuffle_deck(void){
+	for(idx = 0; idx < 64; idx++){
+		ix = idx & 0x3F;
+		iy = (idx + rand8()) & 0x3F;
+		
+		tmp = symbol_grid[ix] ^ symbol_grid[iy];
+		symbol_grid[ix] ^= tmp;
+		symbol_grid[iy] ^= tmp;
+	}
+}
+
 static void game_screen(void){
 	memcpy(tile_grid, TILE_GRID_INIT, sizeof(tile_grid));
-	memcpy(symbol_grid, SYMBOL_GRID_INIT, sizeof(symbol_grid));
+	// memcpy(symbol_grid, SYMBOL_GRID_INIT, sizeof(symbol_grid));
 	
 	rand_seed = 1234;
+	
+	// Fill with 4 of each.
+	for(idx = 0; idx < 16; idx++){
+		(symbol_grid + 0x00)[idx] = idx;
+		(symbol_grid + 0x10)[idx] = idx;
+		(symbol_grid + 0x20)[idx] = idx;
+		(symbol_grid + 0x30)[idx] = idx;
+	}
+	
+	shuffle_deck();
+	
+	// Copy overflow to shuffle.
+	memcpy(shuffle_arr + 0, symbol_grid + 0x00, 8);
+	memcpy(shuffle_arr + 8, symbol_grid + 0x38, 8);
+	shuffle_arr[0x10] = symbol_grid[0x08];
+	shuffle_arr[0x11] = symbol_grid[0x0F];
+	shuffle_arr[0x12] = symbol_grid[0x10];
+	shuffle_arr[0x13] = symbol_grid[0x17];
+	shuffle_arr[0x14] = symbol_grid[0x18];
+	shuffle_arr[0x15] = symbol_grid[0x1F];
+	shuffle_arr[0x16] = symbol_grid[0x20];
+	shuffle_arr[0x17] = symbol_grid[0x27];
+	shuffle_arr[0x18] = symbol_grid[0x28];
+	shuffle_arr[0x19] = symbol_grid[0x2F];
+	shuffle_arr[0x1A] = symbol_grid[0x30];
+	shuffle_arr[0x1B] = symbol_grid[0x37];
 	
 	px_ppu_sync_disable();{
 		for(ix = 1; ix <= 6; ix++){
@@ -479,14 +516,14 @@ static void game_screen(void){
 		}
 		
 		// Sloppy debug draw for shuffle array
-		for(idx = 4; idx < 31; idx++){
-			tmp = shuffle_arr[(shuffle_cursor + idx) & SHUFFLE_MASK];
-			px_spr(0x00 + 8*idx, 0xC0 + idx, SYMBOL_ATTR[tmp & 0xF], SYMBOL_CHR[tmp & 0xF]);
-		}
+		// for(idx = 4; idx < 32; idx++){
+		// 	tmp = shuffle_arr[(shuffle_cursor + idx) & SHUFFLE_MASK];
+		// 	px_spr(0x00 + 8*idx, 0xC0 + idx, SYMBOL_ATTR[tmp & 0xF], SYMBOL_CHR[tmp & 0xF]);
+		// }
 		
 		px_profile_start();
 		px_profile_end();
-		// px_spr_end();
+		px_spr_end();
 		px_wait_nmi();
 	}
 }
