@@ -1,4 +1,4 @@
-PROJECT_NAME = GGJ21
+PROJECT_NAME = Blockade
 ROM = $(PROJECT_NAME).nes
 
 CC65_ROOT = `pwd`/../cc65

@@ -5,7 +5,7 @@
 #include "common.h"
 
 static void debug_message(const char* str){
-	px_buffer_blit(NT_ADDR(0, 0, 25), str, strlen(str));
+	px_buffer_blit(NT_ADDR(0, 0, 26), str, strlen(str));
 }
 
 #define BG_COLOR 0x17
@@ -200,18 +200,31 @@ static u8 shuffle_arr[SHUFFLE_COUNT] = {
 static u8 tile_grid[64];
 
 #define P TILE_PERIMETER_BITS
+#define B TILE_PLAYER1_OWN_BIT
+#define G TILE_PLAYER2_OWN_BIT
 static const u8 TILE_GRID_INIT[64] = {
 	P, P, P, P, P, P, P, P,
-	P, 0, 0, 0, 0, 0, 0, P,
-	P, 0, 0, 0, 0, 0, 0, P,
-	P, 0, 0, 0, 0, 0, 0, P,
-	P, 0, 0, 0, 0, 0, 0, P,
-	P, 0, 0, 0, 0, 0, 0, P,
-	P, 0, 0, 0, 0, 0, 0, P,
+	P, B, B, B, G, G, G, P,
+	P, B, B, B, G, G, G, P,
+	P, B, B, B, G, G, G, P,
+	P, B, B, B, G, G, G, P,
+	P, B, B, B, G, G, G, P,
+	P, B, B, 0, 0, G, G, P,
+	// P, 0, 0, 0, 0, 0, 0, P,
+	// P, 0, 0, 0, 0, 0, 0, P,
+	// P, 0, 0, 0, 0, 0, 0, P,
+	// P, 0, 0, 0, 0, 0, 0, P,
+	// P, 0, 0, 0, 0, 0, 0, P,
+	// P, 0, 0, 0, 0, 0, 0, P,
 	P, P, P, P, P, P, P, P,
 };
 
-static u8 FOOBAR[512];
+static const char* DECIMALS[] = {
+	" 0", " 1", " 2", " 3", " 4", " 5", " 6", " 7", " 8", " 9", "10", "11",
+	"12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23",
+	"24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35",
+	"36",
+};
 
 #define MOUSE_SPEED 0x280
 static u16 mouse_x, mouse_y;
@@ -286,6 +299,7 @@ static void click_tile(){
 static const u8 CHECK_BITS[4] = {1, 2, 4, 8};
 static const bool CHECK_ONE[16] = {0, 1, 1, 0, 1, 0, 0, 0, 1};
 static bool check_match(void){
+	return true;
 	ix = 0, iy = 0;
 	for(grid_idx = 0; grid_idx < sizeof(symbol_grid); grid_idx++){
 		grid_val = symbol_grid[grid_idx];
@@ -423,19 +437,48 @@ static void gameloop_player(void){
 	}
 }
 
+static void tally_score(void){
+	ix = 0, iy = 0;
+	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
+		grid_val = tile_grid[grid_idx];
+		if(grid_val & TILE_BORDER_BIT) continue;
+		if(grid_val & TILE_PLAYER1_OWN_BIT) ix++;
+		if(grid_val & TILE_PLAYER2_OWN_BIT) iy++;
+	}
+	
+	px_buffer_blit(NT_ADDR(0, 0, 25), "BLUE:", 6);
+	px_buffer_blit(NT_ADDR(0, 6, 25), DECIMALS[ix], 2);
+	
+	px_buffer_blit(NT_ADDR(0, 15, 25), "GREEN:", 6);
+	px_buffer_blit(NT_ADDR(0, 22, 25), DECIMALS[iy], 2);
+}
+
+static bool check_endgame(void){
+	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
+		if((tile_grid[grid_idx] & TILE_OWNER_BITS) == 0) return false;
+	}
+	return true;
+}
+
 static u8 gameloop_coro[128];
 static uintptr_t gameloop_body(uintptr_t _){
 	mouse_x = 0x8000, mouse_y = 0x8000;
 	
 	while(true){
-		debug_message("BLUE ");
+		tally_score();
+		px_buffer_blit(NT_ADDR(0, 5, 24), " BLUE'S TURN", 12);
 		player_own_bit = TILE_PLAYER1_OWN_BIT;
 		gameloop_player();
+		if(check_endgame()) break;
 		
-		debug_message("GREEN ");
+		tally_score();
+		px_buffer_blit(NT_ADDR(0, 5, 24), "GREEN'S TURN", 12);
 		player_own_bit = TILE_PLAYER2_OWN_BIT;
 		gameloop_player();
+		if(check_endgame()) break;
 	}
+	
+	px_coro_yield(1);
 }
 
 static void shuffle_deck(void){
@@ -491,21 +534,22 @@ static void game_screen(void){
 		}
 	} px_ppu_sync_enable();
 	
-	px_debug_hex_addr = NT_ADDR(0, 0, 24);
+	px_debug_hex_addr = NT_ADDR(0, 0, 27);
 	PX.scroll_y = 480 - 16;
 	PX.scroll_x = -36;
 		
 	fade_from_black(PALETTE, 4);
 	
 	px_coro_init(gameloop_body, gameloop_coro, sizeof(gameloop_coro));
-	
+
 	while(true){
 		read_gamepads();
-		px_debug_hex(selected_tile_count);
 		if(px_coro_resume(gameloop_coro, 0)) break;
 		
+		// Draw mouse.
 		px_spr(mouse_x >> 8, mouse_y >> 8, 0x02, 0x04);
 		
+		// Draw symbols.
 		// This loop is SUPER expensive. Do I care?
 		for(ix = 1; ix <= 6; ix++){
 			for(iy = 1; iy <= 6; iy++){
@@ -521,11 +565,27 @@ static void game_screen(void){
 		// 	px_spr(0x00 + 8*idx, 0xC0 + idx, SYMBOL_ATTR[tmp & 0xF], SYMBOL_CHR[tmp & 0xF]);
 		// }
 		
-		px_profile_start();
-		px_profile_end();
 		px_spr_end();
 		px_wait_nmi();
 	}
+	
+	// Tally points.
+	ix = 0, iy = 0;
+	for(grid_idx = 0; grid_idx < sizeof(tile_grid); grid_idx++){
+		if((tile_grid[grid_idx] & TILE_PLAYER1_OWN_BIT) == 0) ix++;
+		if((tile_grid[grid_idx] & TILE_PLAYER2_OWN_BIT) == 0) iy++;
+	}
+	
+	if(ix > iy){
+		px_buffer_blit(NT_ADDR(0, 5, 24), " GREEN WINS ", 12);
+	} else if(ix < iy){
+		px_buffer_blit(NT_ADDR(0, 5, 24), "  BLUE WINS ", 12);
+	} else {
+		px_buffer_blit(NT_ADDR(0, 5, 24), "    DRAW!   ", 12);
+	}
+	px_buffer_blit(NT_ADDR(0, 0, 25), "                                ", 32);
+	
+	while(true) px_wait_nmi();
 }
 
 void main(void){
